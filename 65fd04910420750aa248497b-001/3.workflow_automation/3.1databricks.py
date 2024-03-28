@@ -1,6 +1,10 @@
 # Import necessary libraries
 from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StructType, StructField
+import os
+
+# Get the current working directory
+current_dir = os.getcwd()
 
 # Initialize SparkSession
 spark = SparkSession.builder \
@@ -13,8 +17,9 @@ schema = StructType([
     StructField("transaction_amount", IntegerType(), True)
 ])
 
+dataset_path = "/home/ec2-user/environment/65fd04910420750aa248497b-001/3.workflow_automation/dataset.csv"
 # Load data from source (CSV file)
-source_df = spark.read.csv("s3://your-bucket/data.csv", header=True, schema=schema)
+source_df = spark.read.csv(dataset_path, header=True, schema=schema)
 
 # Perform data transformations (example: aggregations)
 result_df = source_df.groupBy("customer_id").agg({"transaction_amount": "sum"})

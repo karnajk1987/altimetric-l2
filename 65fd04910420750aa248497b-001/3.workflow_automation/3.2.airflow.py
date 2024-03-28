@@ -1,6 +1,7 @@
 from airflow import DAG
-from airflow.operators.databricks_operator import DatabricksSubmitRunOperator
+from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
+from airflow.models import Variable
 
 # Define DAG arguments
 default_args = {
@@ -21,20 +22,36 @@ dag = DAG(
     schedule_interval=timedelta(days=1),
 )
 
-# Define Databricks task
-databricks_task = DatabricksSubmitRunOperator(
-    task_id='run_databricks_notebook',
-    dag=dag,
-    new_cluster={
-        'spark_version': '7.3.x-scala2.12',
-        'node_type_id': 'i3.xlarge',
-        'num_workers': 2,
-    },
-    notebook_task={
-        'notebook_path': '/path/to/your/notebook/data_processing_notebook',
-        'base_parameters': {
-            'data_path': 's3://your-bucket/data.csv'  # Specify the path to your dataset file
+def run_databricks_notebook():
+    from airflow.contrib.hooks.databricks_hook import DatabricksHook
+
+    # Initialize DatabricksHook
+    databricks_hook = DatabricksHook(databricks_conn_id='your_databricks_connection_id')
+
+    # Specify notebook parameters
+    notebook_params = {
+        'data_path': Variable.get("data_path")  # Fetching data path from Airflow Variables
+    }
+
+    # Submit run to Databricks
+    run_id = databricks_hook.submit_run(
+        new_cluster={
+            'spark_version': '7.3.x-scala2.12',
+            'node_type_id': 'i3.xlarge',
+            'num_workers': 2,
+        },
+        notebook_task={
+            'notebook_path': '/home/ec2-user/environment/65fd04910420750aa248497b-001/3.workflow_automation/3.1databricks.py',
+            'base_parameters': notebook_params
         }
-    },
+    )
+    print("Submitted Databricks run with run_id:", run_id)
+
+# Define Databricks task
+databricks_task = PythonOperator(
+    task_id='run_databricks_notebook',
+    python_callable=run_databricks_notebook,
+    dag=dag
 )
 
+databricks_task
